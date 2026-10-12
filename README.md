@@ -26,6 +26,28 @@ Leave that window open while you use the calculator; close it to stop.
 - **Exact quality prices for this building** fetches each product's full order book, one
   product per request.
 
+## Shutting everything down
+
+The offline page (`retail-calculator.html` opened directly) runs nothing in the background — just
+close the browser tab.
+
+The live-refresh server keeps running until you stop it:
+
+1. **Optional — cancel pending requests first.** The request queue is saved to
+   `.refresh-state.json` and resumes the next time you start the server. If you don't want that,
+   click **Cancel queue** in the calculator before stopping.
+2. **Stop the server.** In the window running it, press **Ctrl+C**, or just close the window
+   (macOS Terminal / Windows console started by `start.command` / `start.bat`).
+3. **If you lost the window**, stop whatever is listening on port 8765:
+   - macOS / Linux: `kill $(lsof -ti tcp:8765)`
+   - Windows (PowerShell): `Stop-Process -Id (Get-NetTCPConnection -LocalPort 8765).OwningProcess`
+4. **To start completely fresh** (forget the queue and the 5-minute timer), delete
+   `.refresh-state.json` while the server is stopped. Only do this if at least 5 minutes have
+   passed since the last request — the file is what keeps you under the game's API limit across
+   restarts.
+
+Check it's really gone: <http://localhost:8765> should no longer load.
+
 ## The game's API limit — please read
 
 Sim Companies allows **one API request every 5 minutes**. Going faster risks a captcha or your
