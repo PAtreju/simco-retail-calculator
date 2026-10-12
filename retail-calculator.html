@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retail Profit Calculator</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --border: #e2e2dd;
+    --accent: #c2410c; --accent-soft: #fff1e8; --good: #15803d; --bad: #b91c1c; --input: #ffffff;
+    --tip-bg: #1d1d1b; --tip-text: #f7f7f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161614; --panel: #1f1f1c; --text: #ecece8; --muted: #9a9a93; --border: #33332f;
+      --accent: #fb923c; --accent-soft: #2e1f14; --good: #4ade80; --bad: #f87171; --input: #262623;
+      --tip-bg: #ecece8; --tip-text: #161614;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px 16px; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .lbl { display: flex; align-items: center; gap: 5px; }
+  input, select { font: inherit; color: var(--text); background: var(--input); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; width: 100%; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .ao input { border-color: var(--accent); font-weight: 700; }
+  .verdict { background: var(--accent-soft); border-color: var(--accent); }
+  .verdict strong { color: var(--accent); }
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; vertical-align: bottom; }
+  th .lbl { justify-content: flex-end; }
+  th:first-child .lbl { justify-content: flex-start; }
+  th:first-child, td:first-child { text-align: left; }
+  td input { width: 84px; padding: 4px 6px; text-align: right; }
+  tbody.products > tr { cursor: pointer; }
+  tbody.products > tr:hover td { background: var(--accent-soft); }
+  tr.top td { font-weight: 700; }
+  tr.open td { border-bottom-color: transparent; }
+  tr.detail { cursor: default !important; }
+  tr.detail > td { background: var(--bg) !important; padding: 12px; white-space: normal; }
+  tr.detail table { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+  tr.best td { background: var(--accent-soft); font-weight: 700; }
+  .pos { color: var(--good); } .neg { color: var(--bad); } .dim { color: var(--muted); }
+  .note { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .chev { display: inline-block; width: 1em; color: var(--muted); }
+  .itemopts { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .itemopts label { width: 170px; }
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .refreshstatus { font-size: 13px; }
+  #refresh .note { margin: 0; white-space: pre-line; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .sorthint { font-size: 12px; margin-left: auto; }
+  button { font: inherit; font-size: 13px; font-weight: 600; color: var(--text); background: var(--input); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--text); }
+  th.sorted { color: var(--accent); }
+  .arrow { font-size: 10px; min-width: 8px; }
+  tr.sub td:first-child { padding-left: 26px; }
+
+  /* "?" help: hover or focus (tap on phones) shows the explanation. */
+  .help { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%;
+    border: 1px solid var(--muted); color: var(--muted); font-size: 10px; font-weight: 700; cursor: help; flex: none; text-transform: none; }
+  .help:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .help .tip { display: none; position: absolute; z-index: 10; top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    width: 260px; padding: 8px 10px; border-radius: 6px; background: var(--tip-bg); color: var(--tip-text);
+    font-size: 12px; font-weight: 400; line-height: 1.4; text-align: left; white-space: normal; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+  .help:hover .tip, .help:focus .tip { display: block; }
+  th:last-child .help .tip, th:nth-last-child(2) .help .tip { left: auto; right: -6px; transform: none; }
+  th:first-child .help .tip { left: -6px; transform: none; }
+</style>
+<script src="retail-prices.js"></script>
+</head>
+<body>
+<main>
+  <h1>Retail profit calculator</h1>
+  <p class="sub">Pick your building and enter your admin overhead. Every product the building sells is ranked by profit per hour. Click a product to see every quality. Uses the in-game Sales Calculator's formula. <span id="asof"></span></p>
+
+  <section class="panel">
+    <div class="grid" id="settings"></div>
+  </section>
+
+  <section class="panel" id="refresh">
+    <div class="toolbar">
+      <button id="rall" type="button">Refresh all prices (1 request)</button>
+      <button id="rbuilding" type="button">Exact quality prices for this building</button>
+      <button id="rclear" type="button">Cancel queue</button>
+      <span id="refreshhelp"></span>
+      <span class="dim refreshstatus" id="rstatus"></span>
+    </div>
+    <p class="note" id="rlog"></p>
+  </section>
+
+  <section class="panel verdict" id="verdict"></section>
+
+  <section class="panel">
+    <div class="toolbar">
+      <button id="expand" type="button" aria-pressed="false">Show all qualities</button> <span id="expandhelp"></span>
+      <span class="dim sorthint">Click any column header to sort by it; click again to flip the order.</span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr id="phead"></tr></thead>
+        <tbody class="products" id="products"></tbody>
+      </table>
+    </div>
+    <p class="note" id="foot"></p>
+  </section>
+</main>
+
+<script>
+const DATA = {"items":[{"id":147,"name":"Jack o'lantern","stores":["t"],"avg":48.2245,"sat":1.0398,"season":"Halloween","model":[{"buildingLevelsNeededPerUnitPerHour":0.054467283285283837,"modeledProductionCostPerUnit":17.917971874476574,"modeledStoreWages":227.7,"modeledUnitsSoldAnHour":40},{"buildingLevelsNeededPerUnitPerHour":0.05804296445981941,"modeledProductionCostPerUnit":19.229819239298102,"modeledStoreWages":227.7,"modeledUnitsSoldAnHour":40},{"buildingLevelsNeededPerUnitPerHour":0.061633601965749615,"modeledProductionCostPerUnit":20.5508027491059,"modeledStoreWages":227.7,"modeledUnitsSoldAnHour":40}],"cost":{"0":34,"1":34,"2":34,"3":34.25,"4":34.75,"5":37.25,"6":48.75}},{"id":148,"name":"Witch costume","stores":["t"],"avg":74.7276,"sat":1.2872,"season":"Halloween","model":[{"buildingLevelsNeededPerUnitPerHour":0.08312990150585367,"modeledProductionCostPerUnit":16.015781374926302,"modeledStoreWages":227.7,"modeledUnitsSoldAnHour":12},{"buildingLevelsNeededPerUnitPerHour":0.08630433278541373,"modeledProductionCostPerUnit":16.96111872082079,"modeledStoreWages":227.7,"modeledUnitsSoldAnHour":12},{"buildingLevelsNeededPerUnitPerHour":0.08945250850381463,"modeledProductionCostPerUnit":17.915586928124746,"modeledStoreWages":227.7,"modeledUnitsSoldAnHour":12}],"cost":{"0":33.25,"1":33.75,"2":34,"3":34,"4":34,"5":38.5,"6":40,"7":50,"8":60,"9":60,"10":60}},{"id":125,"name":"Apple cider","stores":["G","r"],"avg":49.096,"sat":1.5426,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.08975948829249263,"modeledProductionCostPerUnit":16.89245070832409,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":15},{"buildingLevelsNeededPerUnitPerHour":0.09308911316302905,"modeledProductionCostPerUnit":17.69129787320276,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":15},{"buildingLevelsNeededPerUnitPerHour":0.09635468627870655,"modeledProductionCostPerUnit":18.480832213319133,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":15}],"cost":{}},{"id":154,"name":"Apple icecream","stores":["z"],"avg":110.0457,"sat":0.8916,"season":"Summer","model":[{"buildingLevelsNeededPerUnitPerHour":0.1287182526735332,"modeledProductionCostPerUnit":29.95807111695399,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":18},{"buildingLevelsNeededPerUnitPerHour":0.1346621314850427,"modeledProductionCostPerUnit":31.786743075133828,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":18},{"buildingLevelsNeededPerUnitPerHour":0.140566068226494,"modeledProductionCostPerUnit":33.61721304367,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":18}],"cost":{}},{"id":123,"name":"Apple pie","stores":["G","r"],"avg":328.6283,"sat":1.2328,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.44821271146853675,"modeledProductionCostPerUnit":159.03103379479182,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":10},{"buildingLevelsNeededPerUnitPerHour":0.48007095614232465,"modeledProductionCostPerUnit":171.9774151587316,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":10},{"buildingLevelsNeededPerUnitPerHour":0.5122997290313998,"modeledProductionCostPerUnit":185.11598993227733,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":10}],"cost":{}},{"id":3,"name":"Apples","stores":["G"],"avg":5.2405,"sat":1.4932,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.007956656285975621,"modeledProductionCostPerUnit":1.3234742787740026,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":110},{"buildingLevelsNeededPerUnitPerHour":0.008217493995122272,"modeledProductionCostPerUnit":1.3858094303634345,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":110},{"buildingLevelsNeededPerUnitPerHour":0.008473295191580672,"modeledProductionCostPerUnit":1.44769772339317,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":110}],"cost":{}},{"id":121,"name":"Bread","stores":["r"],"avg":0,"sat":0.1,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.3010036854630962,"modeledProductionCostPerUnit":102.80449463965789,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":0.3215916763639164,"modeledProductionCostPerUnit":111.10484999328038,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":0.3424071927720108,"modeledProductionCostPerUnit":119.52958557615369,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0}],"cost":{}},{"id":102,"name":"Bricks","stores":["d"],"avg":7.5123,"sat":0.9363,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.0031827458286481517,"modeledProductionCostPerUnit":1.1651455145971734,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":80},{"buildingLevelsNeededPerUnitPerHour":0.003415339593778958,"modeledProductionCostPerUnit":1.2512595715460795,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":80},{"buildingLevelsNeededPerUnitPerHour":0.003649035021420298,"modeledProductionCostPerUnit":1.3378325161749713,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":80}],"cost":{}},{"id":134,"name":"Butter","stores":["r"],"avg":0,"sat":0.1,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.08105660496095848,"modeledProductionCostPerUnit":27.830671023453462,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":0.08661070778474494,"modeledProductionCostPerUnit":29.87055025723062,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":0.09218820296931218,"modeledProductionCostPerUnit":31.921999474334033,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0}],"cost":{}},{"id":103,"name":"Cement","stores":["d"],"avg":13.4969,"sat":0.9151,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.009120622021295741,"modeledProductionCostPerUnit":3.1374566263259,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":60},{"buildingLevelsNeededPerUnitPerHour":0.009745984419983037,"modeledProductionCostPerUnit":3.3592180214001557,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":60},{"buildingLevelsNeededPerUnitPerHour":0.01037250442465246,"modeledProductionCostPerUnit":3.581776732911478,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":60}],"cost":{}},{"id":122,"name":"Cheese","stores":["G","r"],"avg":136.6485,"sat":1.2219,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.19585073147614443,"modeledProductionCostPerUnit":68.46473147673622,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":30},{"buildingLevelsNeededPerUnitPerHour":0.20951715003660626,"modeledProductionCostPerUnit":73.5153317447319,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":30},{"buildingLevelsNeededPerUnitPerHour":0.22324686279514794,"modeledProductionCostPerUnit":78.59533732571877,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":30}],"cost":{}},{"id":140,"name":"Chocolate","stores":["G"],"avg":275.2524,"sat":1.2135,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.4059114692309673,"modeledProductionCostPerUnit":131.18093681651303,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":15},{"buildingLevelsNeededPerUnitPerHour":0.4320751867188788,"modeledProductionCostPerUnit":140.6298577066403,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":15},{"buildingLevelsNeededPerUnitPerHour":0.4583198059070685,"modeledProductionCostPerUnit":150.1296805236153,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":15}],"cost":{}},{"id":153,"name":"Chocolate icecream","stores":["z"],"avg":105.1114,"sat":0.8313,"season":"Summer","model":[{"buildingLevelsNeededPerUnitPerHour":0.12226109435656624,"modeledProductionCostPerUnit":32.862982552890024,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":22},{"buildingLevelsNeededPerUnitPerHour":0.1287968546744835,"modeledProductionCostPerUnit":35.03287146034512,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":22},{"buildingLevelsNeededPerUnitPerHour":0.1353178753293631,"modeledProductionCostPerUnit":37.20952718282326,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":22}],"cost":{}},{"id":132,"name":"Cocktails","stores":["r"],"avg":0,"sat":0.1,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":2.693072531528546,"modeledProductionCostPerUnit":1360.6340543764206,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":2.9707149489812257,"modeledProductionCostPerUnit":1525.8676015591511,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":3.2617008038430293,"modeledProductionCostPerUnit":1700.0178184651747,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0}],"cost":{}},{"id":119,"name":"Coffee powder","stores":["G","r"],"avg":40.2722,"sat":1.4385,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.07915340440267221,"modeledProductionCostPerUnit":20.333909694131275,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":100},{"buildingLevelsNeededPerUnitPerHour":0.0831965820630771,"modeledProductionCostPerUnit":21.668055696201822,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":100},{"buildingLevelsNeededPerUnitPerHour":0.08722919014910514,"modeledProductionCostPerUnit":23.006719725631527,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":100}],"cost":{}},{"id":155,"name":"Cream egg","stores":["I"],"avg":140.4427,"sat":0.9061,"season":"Easter","model":[{"buildingLevelsNeededPerUnitPerHour":0.18256075788628257,"modeledProductionCostPerUnit":64.95297114949169,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":70},{"buildingLevelsNeededPerUnitPerHour":0.1955294911242329,"modeledProductionCostPerUnit":69.77942123482245,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":70},{"buildingLevelsNeededPerUnitPerHour":0.2085644725110135,"modeledProductionCostPerUnit":74.63487031342102,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":70}],"cost":{}},{"id":12,"name":"Diesel","stores":["A"],"avg":47.0872,"sat":0.867,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.05453842856592886,"modeledProductionCostPerUnit":21.891720662719823,"modeledStoreWages":379.5,"modeledUnitsSoldAnHour":105},{"buildingLevelsNeededPerUnitPerHour":0.05894138193606232,"modeledProductionCostPerUnit":23.86026902336927,"modeledStoreWages":379.5,"modeledUnitsSoldAnHour":105},{"buildingLevelsNeededPerUnitPerHour":0.06342960723923502,"modeledProductionCostPerUnit":25.874024822430698,"modeledStoreWages":379.5,"modeledUnitsSoldAnHour":105}],"cost":{}},{"id":62,"name":"Dress","stores":["H"],"avg":39.0067,"sat":1.2244,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.0595893971700014,"modeledProductionCostPerUnit":10.562846754036281,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":45},{"buildingLevelsNeededPerUnitPerHour":0.0616774897944069,"modeledProductionCostPerUnit":11.127709656118052,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":45},{"buildingLevelsNeededPerUnitPerHour":0.06373774889035827,"modeledProductionCostPerUnit":11.695561405456298,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":45}],"cost":{}},{"id":151,"name":"Easter Bunny","stores":["I"],"avg":234.8768,"sat":0.8124,"season":"Easter","model":[{"buildingLevelsNeededPerUnitPerHour":0.32914503765802516,"modeledProductionCostPerUnit":107.89335327083445,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":30},{"buildingLevelsNeededPerUnitPerHour":0.3506680661576384,"modeledProductionCostPerUnit":115.70671384590469,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":30},{"buildingLevelsNeededPerUnitPerHour":0.3722650619531084,"modeledProductionCostPerUnit":123.56322635748833,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":30}],"cost":{}},{"id":55,"name":"Economy car","stores":["2"],"avg":2644.6633,"sat":0.6275,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":2.9467500182603947,"modeledProductionCostPerUnit":1128.4344845949863,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":2},{"buildingLevelsNeededPerUnitPerHour":3.172768281418329,"modeledProductionCostPerUnit":1219.8990021740833,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":2},{"buildingLevelsNeededPerUnitPerHour":3.4013459074022707,"modeledProductionCostPerUnit":1312.729496460404,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":2}],"cost":{}},{"id":53,"name":"Economy e-car","stores":["2"],"avg":3896.1973,"sat":0.5844,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":4.560052235449811,"modeledProductionCostPerUnit":1687.8849361990797,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":2},{"buildingLevelsNeededPerUnitPerHour":4.897457779940566,"modeledProductionCostPerUnit":1817.5537839187427,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":2},{"buildingLevelsNeededPerUnitPerHour":5.237370934404523,"modeledProductionCostPerUnit":1948.4615006172346,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":2}],"cost":{}},{"id":9,"name":"Eggs","stores":["G"],"avg":2.2508,"sat":1.5367,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.004686999747628333,"modeledProductionCostPerUnit":0.7041533150198044,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":340},{"buildingLevelsNeededPerUnitPerHour":0.004825017092868805,"modeledProductionCostPerUnit":0.7292769680471267,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":340},{"buildingLevelsNeededPerUnitPerHour":0.004958924107641794,"modeledProductionCostPerUnit":0.7538837273750104,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":340}],"cost":{}},{"id":127,"name":"Frozen pizza","stores":["G"],"avg":498.9272,"sat":1.2882,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.7886227809604395,"modeledProductionCostPerUnit":253.23826071143023,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":10},{"buildingLevelsNeededPerUnitPerHour":0.8391977205507947,"modeledProductionCostPerUnit":272.1983540854805,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":10},{"buildingLevelsNeededPerUnitPerHour":0.8900619032963407,"modeledProductionCostPerUnit":291.3377876697846,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":10}],"cost":{}},{"id":126,"name":"Ginger beer","stores":["G","r"],"avg":89.357,"sat":1.2759,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.10006218868465078,"modeledProductionCostPerUnit":27.05564531910737,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":10},{"buildingLevelsNeededPerUnitPerHour":0.10544057868625505,"modeledProductionCostPerUnit":28.81633560579997,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":10},{"buildingLevelsNeededPerUnitPerHour":0.11080211503771163,"modeledProductionCostPerUnit":30.580190541276366,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":10}],"cost":{}},{"id":61,"name":"Gloves","stores":["H"],"avg":52.8749,"sat":1.1815,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.059706390575262266,"modeledProductionCostPerUnit":9.0442889484398,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":20},{"buildingLevelsNeededPerUnitPerHour":0.06148171668974752,"modeledProductionCostPerUnit":9.394549459952708,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":20},{"buildingLevelsNeededPerUnitPerHour":0.06320918648256162,"modeledProductionCostPerUnit":9.739492806669688,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":20}],"cost":{}},{"id":5,"name":"Grapes","stores":["G"],"avg":7.0245,"sat":1.4678,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.009815984260809504,"modeledProductionCostPerUnit":1.6771922574517373,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":80},{"buildingLevelsNeededPerUnitPerHour":0.010146722009585872,"modeledProductionCostPerUnit":1.7581615627211524,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":80},{"buildingLevelsNeededPerUnitPerHour":0.010471425781758723,"modeledProductionCostPerUnit":1.8386047785296857,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":80}],"cost":{}},{"id":129,"name":"Hamburger","stores":["r"],"avg":0,"sat":0.1,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":2.3949330469904724,"modeledProductionCostPerUnit":1301.8137012401812,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":2.661019290483073,"modeledProductionCostPerUnit":1464.6718224271067,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":2.940748198824688,"modeledProductionCostPerUnit":1636.5365742618942,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0}],"cost":{}},{"id":64,"name":"Handbags","stores":["H"],"avg":80.0705,"sat":1.3914,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.14967121715111928,"modeledProductionCostPerUnit":22.967675422490018,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":20},{"buildingLevelsNeededPerUnitPerHour":0.15418093353842224,"modeledProductionCostPerUnit":23.87120299919537,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":20},{"buildingLevelsNeededPerUnitPerHour":0.15857159912648722,"modeledProductionCostPerUnit":24.761483373752256,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":20}],"cost":{}},{"id":26,"name":"Laptops","stores":["C"],"avg":1559.1047,"sat":0.7247,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":1.5691405121121074,"modeledProductionCostPerUnit":592.6567143980969,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":1.2},{"buildingLevelsNeededPerUnitPerHour":1.6876114585927768,"modeledProductionCostPerUnit":638.1754481232036,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":1.2},{"buildingLevelsNeededPerUnitPerHour":1.806956074039177,"modeledProductionCostPerUnit":684.0749931167466,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":1.2}],"cost":{}},{"id":130,"name":"Lasagna","stores":["r"],"avg":0,"sat":0.1,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":2.106519892672926,"modeledProductionCostPerUnit":1223.6913011426147,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":2.3570040173857527,"modeledProductionCostPerUnit":1380.694744516906,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":2.621038004532034,"modeledProductionCostPerUnit":1546.62091524684,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0}],"cost":{}},{"id":56,"name":"Luxury car","stores":["2"],"avg":5839.5292,"sat":0.5988,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":5.752700571774589,"modeledProductionCostPerUnit":2163.8843446509118,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":0.5},{"buildingLevelsNeededPerUnitPerHour":6.186137630842201,"modeledProductionCostPerUnit":2339.553506039372,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":0.5},{"buildingLevelsNeededPerUnitPerHour":6.624539912971594,"modeledProductionCostPerUnit":2517.941412795971,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":0.5}],"cost":{}},{"id":54,"name":"Luxury e-car","stores":["2"],"avg":8041.546,"sat":0.6278,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":8.788636563235729,"modeledProductionCostPerUnit":3197.2704512105124,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":0.5},{"buildingLevelsNeededPerUnitPerHour":9.427646261288189,"modeledProductionCostPerUnit":3441.633210109271,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":0.5},{"buildingLevelsNeededPerUnitPerHour":10.071182507322568,"modeledProductionCostPerUnit":3688.3101754550285,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":0.5}],"cost":{}},{"id":70,"name":"Luxury watch","stores":["H"],"avg":1018.2389,"sat":0.8849,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":1.171979187382826,"modeledProductionCostPerUnit":414.50045675944665,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":3},{"buildingLevelsNeededPerUnitPerHour":1.254733304893077,"modeledProductionCostPerUnit":445.2390620197452,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":3},{"buildingLevelsNeededPerUnitPerHour":1.3379028282176826,"modeledProductionCostPerUnit":476.2005787312076,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":3}],"cost":{}},{"id":131,"name":"Meat balls","stores":["r"],"avg":0,"sat":0.1,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":2.444440664728491,"modeledProductionCostPerUnit":1438.0083529777407,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":2.7388443758727177,"modeledProductionCostPerUnit":1623.0358321055742,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":3.049264590044103,"modeledProductionCostPerUnit":1818.5651502869255,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0}],"cost":{}},{"id":117,"name":"Milk","stores":["r"],"avg":0,"sat":0.1,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.02716312370500713,"modeledProductionCostPerUnit":4.447784327589622,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":0.028038477701024404,"modeledProductionCostPerUnit":4.644175593378594,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":0.02889457851252995,"modeledProductionCostPerUnit":4.838645440465237,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0}],"cost":{}},{"id":27,"name":"Monitors","stores":["C"],"avg":789.0005,"sat":0.6941,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.7201712121519996,"modeledProductionCostPerUnit":272.96812469426237,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":2},{"buildingLevelsNeededPerUnitPerHour":0.774758363447735,"modeledProductionCostPerUnit":294.1621171806931,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":2},{"buildingLevelsNeededPerUnitPerHour":0.8297903706539643,"modeledProductionCostPerUnit":315.558865731908,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":2}],"cost":{}},{"id":71,"name":"Necklace","stores":["H"],"avg":1994.3588,"sat":0.9991,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":2.4362710363814073,"modeledProductionCostPerUnit":874.2521322995151,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":2},{"buildingLevelsNeededPerUnitPerHour":2.6108349112010596,"modeledProductionCostPerUnit":939.3094443646374,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":2},{"buildingLevelsNeededPerUnitPerHour":2.786314327525317,"modeledProductionCostPerUnit":1004.838889058023,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":2}],"cost":{}},{"id":124,"name":"Orange juice","stores":["G","r"],"avg":58.3551,"sat":1.3965,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.07962872841025133,"modeledProductionCostPerUnit":18.945949161708363,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":15},{"buildingLevelsNeededPerUnitPerHour":0.08338665867769919,"modeledProductionCostPerUnit":20.09088128559387,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":15},{"buildingLevelsNeededPerUnitPerHour":0.08711715207761611,"modeledProductionCostPerUnit":21.23520644406057,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":15}],"cost":{}},{"id":4,"name":"Oranges","stores":["G"],"avg":6.0794,"sat":1.4735,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.008378244840992382,"modeledProductionCostPerUnit":1.3671086942182373,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":90},{"buildingLevelsNeededPerUnitPerHour":0.008647570615670862,"modeledProductionCostPerUnit":1.4303223605902136,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":90},{"buildingLevelsNeededPerUnitPerHour":0.00891148604117326,"modeledProductionCostPerUnit":1.4930504763260029,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":90}],"cost":{}},{"id":11,"name":"Petrol","stores":["A"],"avg":47.2677,"sat":0.827,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.05480224882248012,"modeledProductionCostPerUnit":22.019145846634075,"modeledStoreWages":379.5,"modeledUnitsSoldAnHour":103},{"buildingLevelsNeededPerUnitPerHour":0.05923092127223874,"modeledProductionCostPerUnit":24.00011652274248,"modeledStoreWages":379.5,"modeledUnitsSoldAnHour":103},{"buildingLevelsNeededPerUnitPerHour":0.06374553595360781,"modeledProductionCostPerUnit":26.026618391472763,"modeledStoreWages":379.5,"modeledUnitsSoldAnHour":103}],"cost":{}},{"id":108,"name":"Planks","stores":["d"],"avg":13.1876,"sat":1.091,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.0161717325913024,"modeledProductionCostPerUnit":5.007986887264768,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":120},{"buildingLevelsNeededPerUnitPerHour":0.017176103717141112,"modeledProductionCostPerUnit":5.428119994457215,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":120},{"buildingLevelsNeededPerUnitPerHour":0.01819459702524144,"modeledProductionCostPerUnit":5.857395310305694,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":120}],"cost":{}},{"id":146,"name":"Pumpkin","stores":["t"],"avg":15.0942,"sat":1.2878,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.014641104010023547,"modeledProductionCostPerUnit":2.837830037953344,"modeledStoreWages":227.7,"modeledUnitsSoldAnHour":50},{"buildingLevelsNeededPerUnitPerHour":0.015202095790618575,"modeledProductionCostPerUnit":2.989368583787052,"modeledStoreWages":227.7,"modeledUnitsSoldAnHour":50},{"buildingLevelsNeededPerUnitPerHour":0.01575544518231109,"modeledProductionCostPerUnit":3.1403129966045134,"modeledStoreWages":227.7,"modeledUnitsSoldAnHour":50}],"cost":{"0":4.8,"1":4.95,"2":5.1,"3":5.3,"4":5.4,"5":5.6,"6":6.2,"7":6.5,"8":8.5,"9":8.8,"10":9,"11":9.7,"12":10}},{"id":149,"name":"Pumpkin soup","stores":["r"],"avg":900,"sat":0.1,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.881609268312481,"modeledProductionCostPerUnit":412.44516132505004,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":0.9654845524734763,"modeledProductionCostPerUnit":459.46428775375654,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":1.0528322577023512,"modeledProductionCostPerUnit":508.7838319328375,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0}],"cost":{}},{"id":98,"name":"Quadcopter","stores":["C"],"avg":1276.4295,"sat":0.7369,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":1.0448969794204614,"modeledProductionCostPerUnit":420.8201217791812,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":1},{"buildingLevelsNeededPerUnitPerHour":1.1293732190169494,"modeledProductionCostPerUnit":456.9590044458487,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":1},{"buildingLevelsNeededPerUnitPerHour":1.215184828319913,"modeledProductionCostPerUnit":493.89970247489845,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":1}],"cost":{}},{"id":152,"name":"Ramadan sweets","stores":["G"],"avg":197.9449,"sat":1.4427,"season":"Ramadan","model":[{"buildingLevelsNeededPerUnitPerHour":0.38786175628722414,"modeledProductionCostPerUnit":121.66836559453718,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":40},{"buildingLevelsNeededPerUnitPerHour":0.41211825164833177,"modeledProductionCostPerUnit":130.32691085774997,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":40},{"buildingLevelsNeededPerUnitPerHour":0.4364311073023231,"modeledProductionCostPerUnit":139.02943122134178,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":40}],"cost":{}},{"id":142,"name":"Salad","stores":["r"],"avg":0,"sat":0.1,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.9330220346093517,"modeledProductionCostPerUnit":433.8016721897065,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":1.0211361858000747,"modeledProductionCostPerUnit":482.13660359234376,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":1.11269397848286,"modeledProductionCostPerUnit":532.7463697389973,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0}],"cost":{}},{"id":143,"name":"Samosa","stores":["r"],"avg":0,"sat":0.1,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.8722279929379774,"modeledProductionCostPerUnit":387.57643378551154,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":0.951243407396712,"modeledProductionCostPerUnit":433.89562047411584,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0},{"buildingLevelsNeededPerUnitPerHour":1.0339280137263374,"modeledProductionCostPerUnit":482.7431578955248,"modeledStoreWages":645.15,"modeledUnitsSoldAnHour":0}],"cost":{}},{"id":8,"name":"Sausages","stores":["G"],"avg":14.7351,"sat":1.3433,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.021782310884529647,"modeledProductionCostPerUnit":6.560739232246618,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":110},{"buildingLevelsNeededPerUnitPerHour":0.02309206140870684,"modeledProductionCostPerUnit":7.046581956294532,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":110},{"buildingLevelsNeededPerUnitPerHour":0.024408383699800515,"modeledProductionCostPerUnit":7.537239875561723,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":110}],"cost":{}},{"id":24,"name":"Smart phones","stores":["C"],"avg":837.5632,"sat":0.7505,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.8174552306259395,"modeledProductionCostPerUnit":306.0610153417686,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":2},{"buildingLevelsNeededPerUnitPerHour":0.8786144000373325,"modeledProductionCostPerUnit":329.33500966377494,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":2},{"buildingLevelsNeededPerUnitPerHour":0.9401822028309115,"modeledProductionCostPerUnit":352.7852135475178,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":2}],"cost":{}},{"id":65,"name":"Sneakers","stores":["H"],"avg":32.9432,"sat":0.8499,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.018266278731175024,"modeledProductionCostPerUnit":6.794271587953286,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":30},{"buildingLevelsNeededPerUnitPerHour":0.019632049806918853,"modeledProductionCostPerUnit":7.3977210046962965,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":30},{"buildingLevelsNeededPerUnitPerHour":0.02102300936689944,"modeledProductionCostPerUnit":8.015589322079672,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":30}],"cost":{}},{"id":7,"name":"Steak","stores":["G"],"avg":50.205,"sat":1.4921,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.093871423707193,"modeledProductionCostPerUnit":24.42435003892025,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":35},{"buildingLevelsNeededPerUnitPerHour":0.09873545210512771,"modeledProductionCostPerUnit":26.107063782608222,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":35},{"buildingLevelsNeededPerUnitPerHour":0.10360149011498175,"modeledProductionCostPerUnit":27.80284566441405,"modeledStoreWages":151.8,"modeledUnitsSoldAnHour":35}],"cost":{}},{"id":63,"name":"Stiletto heel","stores":["H"],"avg":60.8551,"sat":1.2643,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.10267849505389884,"modeledProductionCostPerUnit":16.566368979138637,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":30},{"buildingLevelsNeededPerUnitPerHour":0.10593777598939177,"modeledProductionCostPerUnit":17.286602160066415,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":30},{"buildingLevelsNeededPerUnitPerHour":0.10912349811624834,"modeledProductionCostPerUnit":18.000994008796457,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":30}],"cost":{}},{"id":25,"name":"Tablets","stores":["C"],"avg":1308.6311,"sat":0.8646,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":1.0082745504308024,"modeledProductionCostPerUnit":376.7145254694643,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":0.8},{"buildingLevelsNeededPerUnitPerHour":1.0835514408330698,"modeledProductionCostPerUnit":405.3539264590962,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":0.8},{"buildingLevelsNeededPerUnitPerHour":1.159330234584344,"modeledProductionCostPerUnit":434.2126665027337,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":0.8}],"cost":{}},{"id":28,"name":"Televisions","stores":["C"],"avg":1189.0093,"sat":0.6707,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":1.2225264120610222,"modeledProductionCostPerUnit":464.7056364772277,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":1.8},{"buildingLevelsNeededPerUnitPerHour":1.3154602064174634,"modeledProductionCostPerUnit":500.8252761109699,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":1.8},{"buildingLevelsNeededPerUnitPerHour":1.4091580179634662,"modeledProductionCostPerUnit":537.2893854315035,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":1.8}],"cost":{}},{"id":110,"name":"Tools","stores":["d"],"avg":207.0436,"sat":0.5697,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.24475197927581513,"modeledProductionCostPerUnit":93.70469910367272,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":40},{"buildingLevelsNeededPerUnitPerHour":0.26350740210429063,"modeledProductionCostPerUnit":101.15883912297762,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":40},{"buildingLevelsNeededPerUnitPerHour":0.2824484645583024,"modeledProductionCostPerUnit":108.7014702384616,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":40}],"cost":{}},{"id":57,"name":"Truck","stores":["2"],"avg":6301.1742,"sat":0.5259,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":6.89809996565229,"modeledProductionCostPerUnit":2800.8186015539704,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":1},{"buildingLevelsNeededPerUnitPerHour":7.460707968859187,"modeledProductionCostPerUnit":3045.215378262768,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":1},{"buildingLevelsNeededPerUnitPerHour":8.032890692332312,"modeledProductionCostPerUnit":3295.057741481298,"modeledStoreWages":417.45000000000005,"modeledUnitsSoldAnHour":1}],"cost":{}},{"id":60,"name":"Underwear","stores":["H"],"avg":31.0235,"sat":1.1111,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.02147551883013843,"modeledProductionCostPerUnit":3.031204059575944,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":25},{"buildingLevelsNeededPerUnitPerHour":0.022069348330737128,"modeledProductionCostPerUnit":3.136225735914774,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":25},{"buildingLevelsNeededPerUnitPerHour":0.02264495194191814,"modeledProductionCostPerUnit":3.239185049272398,"modeledStoreWages":341.55,"modeledUnitsSoldAnHour":25}],"cost":{}},{"id":109,"name":"Windows","stores":["d"],"avg":121.9939,"sat":0.61,"season":null,"model":[{"buildingLevelsNeededPerUnitPerHour":0.13044007850686368,"modeledProductionCostPerUnit":54.61080455081742,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":30},{"buildingLevelsNeededPerUnitPerHour":0.1414072759065603,"modeledProductionCostPerUnit":59.345257310556754,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":30},{"buildingLevelsNeededPerUnitPerHour":0.1525539737428541,"modeledProductionCostPerUnit":64.16575499004281,"modeledStoreWages":189.75,"modeledUnitsSoldAnHour":30}],"cost":{}},{"id":67,"name":"Xmas crackers","stores":["u"],"avg":12.8,"sat":0.8681,"season":"Xmas","model":[{"buildingLevelsNeededPerUnitPerHour":0.01580596186052483,"modeledProductionCostPerUnit":6.012056632869996,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":400},{"buildingLevelsNeededPerUnitPerHour":0.01700874955079077,"modeledProductionCostPerUnit":6.484413034180247,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":400},{"buildingLevelsNeededPerUnitPerHour":0.018222368093853268,"modeledProductionCostPerUnit":6.961906140233547,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":400}],"cost":{}},{"id":144,"name":"Xmas ornament","stores":["u"],"avg":22.192,"sat":1.1016,"season":"Xmas","model":[{"buildingLevelsNeededPerUnitPerHour":0.021797073001285274,"modeledProductionCostPerUnit":8.435213774383472,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":70},{"buildingLevelsNeededPerUnitPerHour":0.023485004300521344,"modeledProductionCostPerUnit":9.10169862822773,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":70},{"buildingLevelsNeededPerUnitPerHour":0.025188763888031845,"modeledProductionCostPerUnit":9.775138675279907,"modeledStoreWages":265.65,"modeledUnitsSoldAnHour":70}],"cost":{}}],"buildings":{"2":{"name":"Car dealership","salaryModifier":1.1},"C":{"name":"Electronics store","salaryModifier":0.5},"H":{"name":"Fashion store","salaryModifier":0.9},"A":{"name":"Gas station","salaryModifier":1},"G":{"name":"Grocery store","salaryModifier":0.4},"d":{"name":"Hardware store","salaryModifier":0.5},"r":{"name":"Restaurant","salaryModifier":1.7},"B":{"name":"Sales offices","salaryModifier":1.7},"z":{"name":"Beach market","salaryModifier":0.7},"t":{"name":"Halloween market","salaryModifier":0.6},"I":{"name":"Spring market","salaryModifier":0.7},"u":{"name":"Xmas market","salaryModifier":0.7}},"averageSalary":345,"qualityWeight":0.3,"asOf":"retail averages 2026-10-11 · Halloween exchange prices 2026-10-12 08:05–08:15 UTC"};
+let PRICES = window.SIMCO_PRICES ?? { books: {}, retail: {}, ticker: {} };
+const ZFR = 370, QFR = { B: 2.28 };
+
+// ---------- the game's retail model (ported from its Sales Calculator) ----------
+function secondsToSell(m, quality, saturation, amount, price, store) {
+  const u = Math.min(Math.max(2 - saturation, 0), 2);
+  const p = Math.max(0.9, u / 2 + 0.5);
+  const f = quality / 12;
+  const wages = m.modeledStoreWages ?? 0, cost = m.modeledProductionCostPerUnit;
+  const mm = ZFR * (m.buildingLevelsNeededPerUnitPerHour * m.modeledUnitsSoldAnHour + 1) * (QFR[store] ?? 1) * ((u / 2) * (1 + f * DATA.qualityWeight));
+  const h = m.modeledUnitsSoldAnHour * p;
+  const v = cost + (mm + wages) / h;
+  const y = mm - (price - v) ** 2 * ((wages + mm) / ((v - cost) * (v - cost)));
+  const s = (amount * ((price - cost) * 3600) - wages) / (y + wages);
+  return s > 0 ? s : NaN;
+}
+function unitsPerHour(m, q, sat, price, speedPct, store) {
+  let s = secondsToSell(m, q, sat, 100, price, store);
+  s -= (s * speedPct) / 100;
+  return (100 * 3600) / s;
+}
+function profit(ctx, m, sat, q, price, cost) {
+  const uph1 = unitsPerHour(m, q, sat, price, ctx.speed, ctx.store);
+  if (!(uph1 > 0)) return null;
+  const perUnit = price - (ctx.wage * ctx.overhead) / uph1 - cost;
+  const uph = uph1 * ctx.level;
+  return { perUnit, uph, perHour: perUnit * uph };
+}
+function bestPrice(ctx, m, sat, avg, q, cost) {
+  // Coarse sweep then a 1¢ refinement, so a $20k car doesn't mean millions of iterations.
+  const lo = Math.max(0.01, cost), hi = Math.max(cost * 4, avg * 2);
+  const step = Math.max(0.01, (hi - lo) / 2000);
+  let r = null;
+  const scan = (a, b, s) => {
+    for (let price = a; price <= b; price += s) {
+      const p = profit(ctx, m, sat, q, price, cost);
+      if (p && (!r || p.perHour > r.perHour)) r = { ...p, price: Math.round(price * 100) / 100 };
+    }
+  };
+  scan(lo, hi, step);
+  if (r && step > 0.01) scan(Math.max(lo, r.price - step), r.price + step, 0.01);
+  return r;
+}
+
+// ---------- help texts: one per field and column ----------
+const HELP = {
+  store: "The building you sell from. Only products this building can sell are listed. Different stores pay different wages, which changes the profit.",
+  ao: "Admin overhead from your Headquarters page, already reduced by your COO. Example: 55.88% overhead with a −1.68% COO reduction → enter 54.2. Overhead multiplies the store's wages, so higher overhead = less profit per unit.",
+  sales: "Your sales speed bonus % (shown on the Headquarters page, e.g. from research or achievements). Faster selling means wages are spread over more units.",
+  cmo: "Your CMO's skill points. The game adds skill ÷ 3 (rounded down) as extra sales speed %. Leave 0 if you have no CMO.",
+  econ: "Current economy phase (top bar in the game). It changes how fast customers buy: recession is slowest, boom is fastest.",
+  level: "Your store's level. Each level sells as fast as a separate level-1 store, so units/hour and profit/hour scale with it. Profit per unit does not change.",
+  product: "A product this building sells. Click the row to open every quality, change buy prices, or override the average price and saturation.",
+  bestq: "The quality that gives the most profit per hour, given the buy prices you have. Higher quality sells faster but usually costs more to buy.",
+  buy: "What one unit costs you: the cheapest exchange offer at this quality or better (buying better than you need is allowed). Click the row to replace it with your own production cost.",
+  sell: "The selling price that maximises profit per hour. Pricing higher earns more per unit but sells slower; this is the sweet spot.",
+  uph: "How many units your store sells per hour at that price, including store level and sales speed.",
+  ppu: "Profit on each unit after the buy price and the store's wages (× admin overhead). Doesn't depend on store level.",
+  pph: "Profit per hour = profit per unit × units per hour. This is what the ranking uses: a store sells one product at a time, so pick the top row.",
+  ppd: "Profit per hour × 24, if the store sells nonstop for a day at this price.",
+  avg: "The market's average retail price yesterday. Customers compare your price with it. You can override it in the product's detail.",
+  sat: "Market saturation: how full the market is. Above 1 customers buy slower, below 1 faster. Seasonal items are only sellable while the season is on.",
+  age: "How old the buy prices are. Exchange prices move fast — older than an hour or so, check the exchange before buying.",
+  quality: "Product quality, Q0 to Q12. Higher quality sells faster at the same price.",
+  atavg: "Profit per unit if you priced at the average retail price. This is the same number the game shows on the exchange page, so you can check the calculator against the game.",
+};
+const help = (k) => `<span class="help" tabindex="0" role="button" aria-label="What is this?">?<span class="tip">${HELP[k]}</span></span>`;
+const lbl = (text, k) => `<span class="lbl">${text} ${help(k)}</span>`;
+
+// ---------- state ----------
+const $ = (id) => document.getElementById(id);
+const ls = (() => { try { return window.localStorage; } catch { return null; } })();
+const saved = (() => { try { return JSON.parse(ls?.getItem("retail-calc-v2") ?? "{}"); } catch { return {}; } })();
+const over = saved.over ?? {}; // over[itemId] = { cost: {q: "12.3"}, avg, sat }
+let openKey = null; // "<itemId>-<quality>" of the row whose detail is open
+const persist = () => { try { ls?.setItem("retail-calc-v2", JSON.stringify({ ...settings(), over, sort, expanded })); } catch {} };
+
+const money = (n) => (n < 0 ? "−$" : "$") + Math.abs(n).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money0 = (n) => (n < 0 ? "−$" : "$") + Math.abs(Math.round(n)).toLocaleString("en");
+const cls = (n) => (n >= 0 ? "pos" : "neg");
+const ago = (iso) => {
+  if (!iso) return "—";
+  const min = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  return min < 60 ? `${min} min` : min < 2880 ? `${Math.round(min / 60)} h` : `${Math.round(min / 1440)} d`;
+};
+
+// ---------- settings panel ----------
+const stores = Object.entries(DATA.buildings)
+  .filter(([code]) => DATA.items.some((i) => i.stores.includes(code)))
+  .sort((a, b) => (a[0] === "t" ? -1 : b[0] === "t" ? 1 : a[1].name.localeCompare(b[1].name)));
+$("settings").innerHTML = `
+  <label>${lbl("Building", "store")}<select id="store">${stores.map(([c, b]) => `<option value="${c}">${b.name}</option>`).join("")}</select></label>
+  <label class="ao">${lbl("Admin overhead %", "ao")}<input id="ao" type="number" step="0.01" min="0" value="50"></label>
+  <label>${lbl("Sales speed bonus %", "sales")}<input id="sales" type="number" step="0.1" min="0" value="1"></label>
+  <label>${lbl("CMO skill", "cmo")}<input id="cmo" type="number" step="1" min="0" value="0"></label>
+  <label>${lbl("Economy", "econ")}<select id="econ"><option value="0">Recession</option><option value="1">Normal</option><option value="2">Boom</option></select></label>
+  <label>${lbl("Store level", "level")}<input id="level" type="number" step="1" min="1" value="1"></label>`;
+const SETTING_IDS = ["store", "ao", "sales", "cmo", "econ", "level"];
+for (const k of SETTING_IDS) if (saved[k] != null && saved[k] !== "") $(k).value = saved[k];
+function settings() { return Object.fromEntries(SETTING_IDS.map((k) => [k, $(k).value])); }
+
+// Each column knows how to read a row for sorting. A row is one product at one quality.
+const COLS = [
+  { k: "name", label: "Product", help: "product", get: (x) => x.it.name, text: true },
+  { k: "q", label: "Quality", help: "bestq", get: (x) => x.q },
+  { k: "cost", label: "Buy price", help: "buy", get: (x) => x.cost },
+  { k: "price", label: "Sell at", help: "sell", get: (x) => x.r?.price },
+  { k: "uph", label: "Units / h", help: "uph", get: (x) => x.r?.uph },
+  { k: "ppu", label: "Profit / unit", help: "ppu", get: (x) => x.r?.perUnit },
+  { k: "pph", label: "Profit / h", help: "pph", get: (x) => x.r?.perHour },
+  { k: "ppd", label: "Profit / day", help: "ppd", get: (x) => (x.r ? x.r.perHour * 24 : null) },
+  { k: "avg", label: "Avg retail", help: "avg", get: (x) => x.avg },
+  { k: "sat", label: "Saturation", help: "sat", get: (x) => x.sat },
+  { k: "age", label: "Price age", help: "age", get: (x) => x.ageMin },
+];
+let sort = saved.sort ?? { k: "pph", dir: -1 };
+let expanded = !!saved.expanded;
+function renderHead() {
+  $("phead").innerHTML = COLS.map((c) => {
+    const on = sort.k === c.k;
+    const label = c.k === "q" ? (expanded ? "Quality" : "Best quality") : c.label;
+    return `<th class="sortable ${on ? "sorted" : ""}" data-k="${c.k}" aria-sort="${on ? (sort.dir > 0 ? "ascending" : "descending") : "none"}">
+      <span class="lbl">${label} <span class="arrow">${on ? (sort.dir > 0 ? "▲" : "▼") : ""}</span>${help(c.help)}</span></th>`;
+  }).join("");
+  $("expand").setAttribute("aria-pressed", String(expanded));
+  $("expand").textContent = expanded ? "Show best quality only" : "Show all qualities";
+}
+$("phead").addEventListener("click", (e) => {
+  if (e.target.closest(".help")) return;
+  const th = e.target.closest("th[data-k]");
+  if (!th) return;
+  const col = COLS.find((c) => c.k === th.dataset.k);
+  // First click: text columns A→Z, numbers biggest first. Second click flips.
+  sort = sort.k === col.k ? { k: col.k, dir: -sort.dir } : { k: col.k, dir: col.text ? 1 : -1 };
+  render();
+});
+$("expand").addEventListener("click", () => { expanded = !expanded; openKey = null; render(); });
+HELP.expand = "Off: one row per product, at its most profitable quality. On: one row for every quality that has a buy price, so you can compare qualities across all products and sort them together.";
+$("expandhelp").innerHTML = help("expand");
+
+// ---------- data lookup with overrides ----------
+function costs(it) {
+  const o = over[it.id]?.cost ?? {};
+  const book = PRICES.books[it.id];
+  const tick = PRICES.ticker?.[it.id];
+  // The ticker (one request, every product) is the cheapest Q0 offer. When it is newer than the
+  // product's full order book, keep the book's quality premiums and rescale them to today's Q0.
+  if (tick && book?.cost?.[0] && PRICES.tickerAt && Date.parse(PRICES.tickerAt) > Date.parse(book.at)) {
+    const out = {};
+    for (let q = 0; q <= 12; q++) {
+      const v = o[q] !== undefined ? o[q] : book.cost[q] != null ? Math.round(tick * (book.cost[q] / book.cost[0]) * 100) / 100 : undefined;
+      out[q] = v === "" || v == null ? null : +v;
+    }
+    return { costs: out, source: { kind: "scaled", at: PRICES.tickerAt, bookAt: book.at } };
+  }
+  const base = book?.cost ?? it.cost ?? {};
+  const out = {};
+  for (let q = 0; q <= 12; q++) {
+    let v = o[q] !== undefined ? o[q] : base[q];
+    if (v === undefined && q === 0 && PRICES.ticker[it.id]) v = PRICES.ticker[it.id];
+    out[q] = v === "" || v == null ? null : +v;
+  }
+  const source = book ? { kind: "book", at: book.at } : PRICES.ticker[it.id] ? { kind: "ticker", at: PRICES.tickerAt } : Object.keys(it.cost ?? {}).length ? { kind: "old", at: null } : null;
+  return { costs: out, source };
+}
+function market(it) {
+  const r = PRICES.retail[it.id];
+  const o = over[it.id] ?? {};
+  return {
+    avg: o.avg != null && o.avg !== "" ? +o.avg : r?.avg ?? it.avg,
+    sat: o.sat != null && o.sat !== "" ? +o.sat : r?.sat ?? it.sat,
+  };
+}
+
+function evaluate(ctx, it) {
+  const m = it.model[+$("econ").value];
+  const { avg, sat } = market(it);
+  const { costs: c, source } = costs(it);
+  const rows = [];
+  let best = null;
+  for (let q = 0; q <= 12; q++) {
+    const cost = c[q];
+    const r = cost != null ? bestPrice(ctx, m, sat, avg, q, cost) : null;
+    const atAvg = cost != null ? profit(ctx, m, sat, q, avg, cost) : null;
+    rows.push({ q, cost, r, atAvg });
+    if (r && (!best || r.perHour > best.r.perHour)) best = { q, cost, r };
+  }
+  return { it, avg, sat, rows, best, source };
+}
+
+// ---------- render ----------
+function render() {
+  const code = $("store").value;
+  const ctx = {
+    store: code,
+    wage: DATA.averageSalary * (DATA.buildings[code]?.salaryModifier ?? 1),
+    overhead: 1 + (+$("ao").value || 0) / 100,
+    speed: (+$("sales").value || 0) + Math.floor((+$("cmo").value || 0) / 3),
+    level: Math.max(1, +$("level").value || 1),
+  };
+  const results = DATA.items.filter((i) => i.stores.includes(code)).map((it) => evaluate(ctx, it));
+  const leader = results.reduce((a, b) => ((b.best?.r.perHour ?? -Infinity) > (a?.best?.r.perHour ?? -Infinity) ? b : a), null);
+  const topRes = leader?.best && leader.best.r.perHour > 0 ? leader : null;
+
+  // Flatten to table rows: the best quality per product, or every priced quality when expanded.
+  const lines = [];
+  for (const res of results) {
+    const ageMin = res.source?.at ? (Date.now() - Date.parse(res.source.at)) / 60000 : null;
+    const ageText = res.source?.kind === "old" ? "old" : res.source ? ago(res.source.at) + (res.source.kind === "ticker" ? " (Q0 only)" : res.source.kind === "scaled" ? ` (Q1+ est. from ${ago(res.source.bookAt)} book)` : "") : "no price";
+    const base = { it: res.it, res, avg: res.avg, sat: res.sat, ageMin, ageText };
+    const picked = expanded ? res.rows.filter((x) => x.cost != null) : res.best ? [res.best] : [];
+    if (picked.length === 0) lines.push({ ...base, q: null, cost: null, r: null });
+    for (const x of picked) lines.push({ ...base, q: x.q, cost: x.cost, r: x.r, isBest: res.best?.q === x.q });
+  }
+  const col = COLS.find((c) => c.k === sort.k) ?? COLS[6];
+  lines.sort((a, b) => {
+    const va = col.get(a), vb = col.get(b);
+    // Rows with no value always sink to the bottom, whichever way the column is sorted.
+    if (va == null || Number.isNaN(va)) return vb == null || Number.isNaN(vb) ? 0 : 1;
+    if (vb == null || Number.isNaN(vb)) return -1;
+    const c = col.text ? String(va).localeCompare(String(vb)) : va - vb;
+    return c * sort.dir || (a.q ?? 0) - (b.q ?? 0);
+  });
+  renderHead();
+
+  $("products").innerHTML = lines.map((x) => {
+    const { it, r: b, q } = x;
+    const key = `${it.id}-${q}`;
+    const open = openKey === key;
+    const isTop = topRes && topRes.it === it && topRes.best.q === q;
+    return `<tr data-key="${key}" data-id="${it.id}" class="${isTop ? "top" : ""} ${open ? "open" : ""}">
+      <td><span class="chev">${open ? "▾" : "▸"}</span>${it.name}${it.season ? ` <span class="dim">(${it.season})</span>` : ""}${expanded && x.isBest ? ` <span class="dim">★</span>` : ""}</td>
+      <td>${q != null ? "Q" + q : "—"}</td>
+      <td>${x.cost != null ? money(x.cost) : "—"}</td>
+      <td>${b ? money(b.price) : "—"}</td>
+      <td>${b ? b.uph.toFixed(1) : "—"}</td>
+      <td class="${b ? cls(b.perUnit) : ""}">${b ? money(b.perUnit) : "—"}</td>
+      <td class="${b ? cls(b.perHour) : ""}">${b ? money0(b.perHour) : "—"}</td>
+      <td class="${b ? cls(b.perHour) : ""}">${b ? money0(b.perHour * 24) : "—"}</td>
+      <td>${money(x.avg)}</td>
+      <td>${x.sat.toFixed(3)}</td>
+      <td class="dim">${x.ageText}</td>
+    </tr>${open ? detail(x.res) : ""}`;
+  }).join("");
+  const top = topRes;
+
+  const name = DATA.buildings[code]?.name ?? code;
+  $("verdict").innerHTML = top
+    ? `In your <strong>${name}</strong>: sell <strong>${top.it.name} Q${top.best.q}</strong> — buy at ${money(top.best.cost)}, sell at <strong>${money(top.best.r.price)}</strong> → ${money(top.best.r.perUnit)} per unit, ${top.best.r.uph.toFixed(0)} units/h, <strong>${money0(top.best.r.perHour)}/h · ${money0(top.best.r.perHour * 24)}/day</strong> at level ${ctx.level}.`
+    : `<strong>Nothing in your ${name} is profitable</strong> at ${$("ao").value}% admin overhead with the buy prices available. Lower overhead, a CMO, or cheaper inputs (your own production) change this — open a product to enter your own cost.`;
+
+  const nBooks = results.filter((r) => r.source?.kind === "book").length;
+  $("foot").innerHTML = `Buy prices: ${nBooks} of ${results.length} products in this building have a full exchange order book${PRICES.builtAt ? ` (data file updated ${ago(PRICES.builtAt)} ago — reload the page to pick up newer prices)` : ""}. “Q0 only” = only the cheapest offer is known so far. Products without a price show “—”; open them and type your cost. Store wages: ${money0(ctx.wage)}/h per level before overhead.`;
+  persist();
+}
+
+function detail({ it, avg, sat, rows, best }) {
+  const o = over[it.id] ?? {};
+  return `<tr class="detail"><td colspan="11">
+    <div class="itemopts">
+      <label>${lbl("Avg retail price $", "avg")}<input data-f="avg" data-id="${it.id}" type="number" step="0.01" min="0" value="${o.avg ?? ""}" placeholder="${avg}"></label>
+      <label>${lbl("Saturation", "sat")}<input data-f="sat" data-id="${it.id}" type="number" step="0.001" min="0" value="${o.sat ?? ""}" placeholder="${sat}"></label>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr>
+        <th>${lbl("Quality", "quality")}</th><th>${lbl("Buy price $", "buy")}</th><th>${lbl("Sell at", "sell")}</th><th>${lbl("Units / h", "uph")}</th>
+        <th>${lbl("Profit / unit", "ppu")}</th><th>${lbl("Profit / h", "pph")}</th><th>${lbl("Profit / day", "ppd")}</th><th>${lbl("Profit/unit at avg", "atavg")}</th>
+      </tr></thead>
+      <tbody>${rows.map(({ q, cost, r, atAvg }) => `
+        <tr class="${best && best.q === q ? "best" : ""}">
+          <td>Q${q}</td>
+          <td><input data-f="cost" data-q="${q}" data-id="${it.id}" type="number" step="0.01" min="0" value="${cost ?? ""}" placeholder="—"></td>
+          <td>${r ? money(r.price) : "—"}</td>
+          <td>${r ? r.uph.toFixed(1) : "—"}</td>
+          <td class="${r ? cls(r.perUnit) : ""}">${r ? money(r.perUnit) : "—"}</td>
+          <td class="${r ? cls(r.perHour) : ""}">${r ? money0(r.perHour) : "—"}</td>
+          <td class="${r ? cls(r.perHour) : ""}">${r ? money0(r.perHour * 24) : "—"}</td>
+          <td class="${atAvg ? cls(atAvg.perUnit) : ""}">${atAvg ? money(atAvg.perUnit) : "—"}</td>
+        </tr>`).join("")}</tbody>
+    </table></div>
+    <p class="note">Edits are saved in this browser. Clear a buy price box to go back to the exchange price.</p>
+  </td></tr>`;
+}
+
+// ---------- events ----------
+$("products").addEventListener("click", (e) => {
+  if (e.target.closest(".detail") || e.target.closest(".help")) return;
+  const tr = e.target.closest("tr[data-key]");
+  if (!tr) return;
+  openKey = openKey === tr.dataset.key ? null : tr.dataset.key;
+  render();
+});
+$("products").addEventListener("change", (e) => {
+  const t = e.target;
+  if (!t.dataset.f) return;
+  const o = (over[t.dataset.id] ??= {});
+  if (t.dataset.f === "cost") {
+    o.cost ??= {};
+    // An emptied box drops the override so the exchange price shows again.
+    if (t.value === "") delete o.cost[t.dataset.q]; else o.cost[t.dataset.q] = t.value;
+  } else {
+    o[t.dataset.f] = t.value;
+  }
+  render();
+});
+$("store").addEventListener("change", () => { openKey = null; render(); });
+for (const id of SETTING_IDS.slice(1)) $(id).addEventListener("input", render);
+$("asof").textContent = `Retail model data: ${DATA.asOf}.`;
+// ---------- refresh (needs the local server: node serve.mjs) ----------
+HELP.refresh = "Refresh all prices: ONE request updates the cheapest Q0 price of every product at once. Higher qualities are estimated by keeping each product's last known quality premium (e.g. Q3 was 7% above Q0) — marked \"est.\" in Price age. Exact quality prices: fetches each product's full order book, one request per product, 5 minutes apart (the game's limit), to make those estimates exact again — only needed now and then. Average retail prices refresh automatically once a day. Needs the local server: start.command (Mac) / start.bat (Windows), or node serve.mjs in this folder, then open http://localhost:8765.";
+$("refreshhelp").innerHTML = help("refresh");
+const served = location.protocol.startsWith("http");
+let lastBuilt = PRICES.builtAt;
+const NAMES = Object.fromEntries(DATA.items.map((i) => [i.id, i.name]));
+const keyName = (k) => (k === "ticker" ? "cheapest prices (all products)" : k === "retail" ? "average retail prices" : NAMES[k.slice(5)] ?? k);
+const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+async function api(path, body) {
+  const res = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  return res.json();
+}
+function showStatus(st) {
+  const n = st.queue.length;
+  if (st.paused) $("rstatus").textContent = `Paused: the game refused a request. Wait a while, then press a refresh button again.`;
+  else if (n === 0) $("rstatus").textContent = `Nothing queued. Prices file updated ${ago(st.builtAt)} ago.`;
+  else {
+    const eta = st.nextRequestInS + (n - 1) * st.gapS;
+    $("rstatus").textContent = `${n} queued · next: ${keyName(st.queue[0])} in ${mmss(st.nextRequestInS)} · all done in ~${Math.round(eta / 60)} min`;
+  }
+  $("rlog").textContent = st.log.slice(0, 3).map((l) => l.replace(/book:(\d+)/, (_, id) => NAMES[id] ?? id)).join("\n");
+}
+async function poll() {
+  try {
+    const st = await api("/api/status");
+    showStatus(st);
+    if (st.builtAt && st.builtAt !== lastBuilt) {
+      PRICES = await api("/api/prices");
+      lastBuilt = st.builtAt;
+      render();
+    }
+  } catch { $("rstatus").textContent = "Lost the local server — is serve.mjs still running?"; }
+}
+async function queue(keys, front) {
+  try { showStatus(await api("/api/refresh", { keys, front })); } catch { $("rstatus").textContent = "Couldn't reach the local server."; }
+}
+if (served) {
+  $("rbuilding").addEventListener("click", () => {
+    const code = $("store").value;
+    queue(DATA.items.filter((i) => i.stores.includes(code)).map((i) => `book:${i.id}`), true);
+  });
+  // Averages are daily figures, so they ride along only when a day old.
+  $("rall").addEventListener("click", () => {
+    const retailStale = !PRICES.retailAt || Date.now() - Date.parse(PRICES.retailAt) > 20 * 3600e3;
+    queue(retailStale ? ["ticker", "retail"] : ["ticker"], true);
+  });
+  $("rclear").addEventListener("click", async () => showStatus(await api("/api/clear", {})));
+  poll();
+  setInterval(poll, 5000);
+} else {
+  for (const id of ["rbuilding", "rall", "rclear"]) $(id).disabled = true;
+  $("rstatus").textContent = "To refresh prices, double-click start.command (Mac) or start.bat (Windows) in this folder — see README.txt";
+}
+
+render();
+</script>
+</body>
+</html>
